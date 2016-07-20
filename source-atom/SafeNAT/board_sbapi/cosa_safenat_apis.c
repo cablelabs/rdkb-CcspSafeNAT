@@ -1,0 +1,1 @@
+// ATOM specific SafeNAT sbapi calls go here

@@ -1,0 +1,1 @@
+// ARM specific SafeNAT sbapi calls go here

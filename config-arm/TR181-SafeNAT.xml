@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dataModelInfo>
+	<version>1</version>
+	<moduleName>RDKCENTRAL_SafeNAT</moduleName>
+	<author>MuruganViswanathan</author>
+	<description>CcspSafeNAT component</description>
+	<library>
+		<path>libSafeNATSsp</path>
+		<func_Init>COSA_Init</func_Init>
+	</library>
+	<objects>
+		<object> <!-- SafeNAT -->
+			<name>SafeNAT</name>
+			<objectType>object</objectType>
+			<functions>
+				<func_GetParamBoolValue>SafeNAT_GetParamBoolValue</func_GetParamBoolValue>
+				<func_SetParamBoolValue>SafeNAT_SetParamBoolValue</func_SetParamBoolValue>
+				<func_GetParamUlongValue>SafeNAT_GetParamUlongValue</func_GetParamUlongValue>
+				<func_SetParamUlongValue>SafeNAT_SetParamUlongValue</func_SetParamUlongValue>
+				<func_GetParamStringValue>SafeNAT_GetParamStringValue</func_GetParamStringValue>
+				<func_SetParamStringValue>SafeNAT_SetParamStringValue</func_SetParamStringValue>
+				<func_Validate>SafeNAT_Validate</func_Validate>
+				<func_Commit>SafeNAT_Commit</func_Commit>
+				<func_Rollback>SafeNAT_Rollback</func_Rollback>
+			</functions>
+			<parameters>
+				<parameter>
+					<name>X_RDKCENTRAL-COM_EnablePortMapping</name>
+					<type>boolean</type>
+					<syntax>bool</syntax>
+					<writable>true</writable>
+				</parameter>
+				<parameter>
+					<name>X_RDKCENTRAL-COM_PortMappingNumberOfEntries</name>
+					<type>unsignedInt</type>
+					<syntax>uint32</syntax>
+				</parameter>
+			</parameters>
+			<objects>
+				<object> <!-- SafeNAT.X_RDKCENTRAL-COM_PortMapping -->
+					<name>X_RDKCENTRAL-COM_PortMapping</name>
+					<objectType>dynWritableTable</objectType>
+					<maxInstance>128</maxInstance>
+					<functions>
+						<func_GetEntryCount>X_RDKCENTRAL_PortMapping_GetEntryCount</func_GetEntryCount>
+						<func_GetEntry>X_RDKCENTRAL_PortMapping_GetEntry</func_GetEntry>
+						<func_IsUpdated>X_RDKCENTRAL_PortMapping_IsUpdated</func_IsUpdated>
+						<func_Synchronize>X_RDKCENTRAL_PortMapping_Synchronize</func_Synchronize>
+						<func_AddEntry>X_RDKCENTRAL_PortMapping_AddEntry</func_AddEntry>
+						<func_DelEntry>X_RDKCENTRAL_PortMapping_DelEntry</func_DelEntry>
+						<func_GetParamBoolValue>X_RDKCENTRAL_PortMapping_GetParamBoolValue</func_GetParamBoolValue>
+						<func_GetParamIntValue>X_RDKCENTRAL_PortMapping_GetParamIntValue</func_GetParamIntValue>
+						<func_GetParamUlongValue>X_RDKCENTRAL_PortMapping_GetParamUlongValue</func_GetParamUlongValue>
+						<func_GetParamStringValue>X_RDKCENTRAL_PortMapping_GetParamStringValue</func_GetParamStringValue>
+						<func_SetParamBoolValue>X_RDKCENTRAL_PortMapping_SetParamBoolValue</func_SetParamBoolValue>
+						<func_SetParamIntValue>X_RDKCENTRAL_PortMapping_SetParamIntValue</func_SetParamIntValue>
+						<func_SetParamUlongValue>X_RDKCENTRAL_PortMapping_SetParamUlongValue</func_SetParamUlongValue>
+						<func_SetParamStringValue>X_RDKCENTRAL_PortMapping_SetParamStringValue</func_SetParamStringValue>
+						<func_Validate>X_RDKCENTRAL_PortMapping_Validate</func_Validate>
+						<func_Commit>X_RDKCENTRAL_PortMapping_Commit</func_Commit>
+						<func_Rollback>X_RDKCENTRAL_PortMapping_Rollback</func_Rollback>
+					</functions>
+					<parameters>
+						<parameter>
+							<name>ExternalPort</name>
+							<type>unsignedInt[0:65535]</type>
+							<syntax>uint32</syntax>
+							<writable>true</writable>
+						</parameter>
+						<parameter>
+							<name>ExternalPortEndRange</name>
+							<type>unsignedInt[0:65535]</type>
+							<syntax>uint32</syntax>
+							<writable>true</writable>
+						</parameter>
+						<parameter>
+							<name>Protocol</name>
+							<type>string: TCP(1),UDP(2),BOTH(3)</type>
+							<syntax>uint32/mapped</syntax>
+							<writable>true</writable>
+						</parameter>
+						<parameter>
+							<name>InternalClient</name>
+							<type>string</type>
+							<syntax>uint32/ip4_addr</syntax>
+							<writable>true</writable>
+						</parameter>
+						<parameter>
+							<name>Description</name>
+							<type>string(256)</type>
+							<syntax>string</syntax>
+							<writable>true</writable>
+						</parameter>
+					</parameters>
+				</object> <!-- SafeNAT.X_RDKCENTRAL-COM_PortMapping -->
+			</objects>
+		</object>    <!-- SafeNAT -->
+	</objects>
+</dataModelInfo>

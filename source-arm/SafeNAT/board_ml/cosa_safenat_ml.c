@@ -1,0 +1,1 @@
+// ARM specific SafeNAT middle layer calls go here
