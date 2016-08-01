@@ -10,23 +10,34 @@
 ******************************************************************************/
    
 #include "ansc_platform.h"
+
 #include "cosa_safenat_dml.h"
 #include "cosa_safenat_internal.h"
 #include "ssp_global.h"
+
+/* CcspPandM component ID and d-bus path */
+#define SAFENAT_PROXY_COMPONENT_ID	        "eRT.com.cisco.spvtg.ccsp.pam"
+#define SAFENAT_PROXY_DBUS_PATH 	        "/com/cisco/spvtg/ccsp/pam"
+
+#define SAFENAT_SPMAP_BASE_ADDR 	        0x10000
+#define SAFENAT_PORTMAPPING_PARAM_COUNT         5
+#define MAX_PARAMETER_LEN                       512
+
 
 extern ANSC_HANDLE bus_handle;
 extern COSA_DATAMODEL_SAFENAT* 		g_pSafeNAT;
 
 PCOSA_BACKEND_MANAGER_OBJECT 		g_pCosaBEManager;
-unsigned int*						g_pSPMapInstList	= NULL;
-unsigned int						g_SPMapInstCount 	= 0;
-/* CcspPandM component ID and d-bus path */
-#define SAFENAT_PROXY_COMPONENT_ID	"eRT.com.cisco.spvtg.ccsp.pam"
-#define SAFENAT_PROXY_DBUS_PATH 	"/com/cisco/spvtg/ccsp/pam"
+unsigned int*	g_pSPMapInstList	= NULL;
+unsigned int	g_SPMapInstCount 	= 0;
 
-#define SAFENAT_SPMAP_BASE_ADDR 	0x10000
+parameterValStruct_t val_set[SAFENAT_PORTMAPPING_PARAM_COUNT] = {'\0'};
+char val_set_parameterName[SAFENAT_PORTMAPPING_PARAM_COUNT][MAX_PARAMETER_LEN] = {'\0'};
+char val_set_parameterValue[SAFENAT_PORTMAPPING_PARAM_COUNT][MAX_PARAMETER_LEN] = {'\0'};
 
+int safeIndex = 0;
 
+ULONG CosaDmlSafeNatSetPortMapping();
 /**************************************************************************************************/
 
 ANSC_STATUS
@@ -581,7 +592,7 @@ X_RDKCENTRAL_PortMapping_DelEntry
 
     if(bFound)
     {
-		char NATParamName[64] = {};
+		char NATParamName[MAX_PARAMETER_LEN] = {};
 		//object name with instance number.
 		sprintf(NATParamName, "%s.%u.", "Device.NAT.PortMapping", insNum);
 
@@ -665,7 +676,7 @@ X_RDKCENTRAL_PortMapping_GetParamUlongValue
  	char *parameterNames[1];
 	parameterValStruct_t **parameterval = NULL;
 	int val_size = 0;
-	char NATParamName[64] = {};
+	char NATParamName[MAX_PARAMETER_LEN] = {};
 
 	if( AnscEqualString(ParamName, "ExternalPort", TRUE)
 		|| AnscEqualString(ParamName, "ExternalPortEndRange", TRUE)
@@ -757,7 +768,7 @@ X_RDKCENTRAL_PortMapping_GetParamStringValue
  	char *parameterNames[1];
 	parameterValStruct_t **parameterval = NULL;
 	int val_size = 0;
-	char NATParamName[64] = {};
+	char NATParamName[MAX_PARAMETER_LEN] = {};
 
     if( AnscEqualString(ParamName, "Description", TRUE))
     {
@@ -854,103 +865,101 @@ X_RDKCENTRAL_PortMapping_SetParamUlongValue
         ULONG                       uValue
     )
 {
-	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x, '%s', uValue: %u) ENTER\n", __FUNCTION__, hInsContext, ParamName, uValue);
-    BOOL	ret   = FALSE;
+        SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x, '%s', uValue: %u) ENTER\n", __FUNCTION__, hInsContext, ParamName, uValue);
+        BOOL	ret   = FALSE;
 
-	parameterValStruct_t val = {0};
-	char* faultParam = NULL;
+        ULONG insNum = (ULONG)hInsContext - SAFENAT_SPMAP_BASE_ADDR;
 
-	ULONG insNum = (ULONG)hInsContext - SAFENAT_SPMAP_BASE_ADDR;
+        char NATParamName[MAX_PARAMETER_LEN] = {};
+        sprintf(NATParamName, "%s.%u.%s", "Device.NAT.PortMapping", insNum, ParamName);
 
-    char NATParamName[64] = {};
-    sprintf(NATParamName, "%s.%u.%s", "Device.NAT.PortMapping", insNum, ParamName);
+        char ParamVal[MAX_PARAMETER_LEN] = {};
 
-    val.parameterName = (char*)NATParamName;
-	//val.type = ccsp_unsignedLong;
+        if( AnscEqualString(ParamName, "ExternalPort", TRUE) || AnscEqualString(ParamName, "ExternalPortEndRange", TRUE))
+        {
+                /* Validate ExternalPort and
+                * and ExternalPortEndRange
+                */
+                //SafeNAT_Validate_ExternalPort() - Taken care in RDKB stack, skip.
+                
+                strncpy(val_set_parameterName[safeIndex],(char*)NATParamName,MAX_PARAMETER_LEN);
+                /* convert to parameterValue string */
+                sprintf(ParamVal, "%u", uValue);
+                strncpy(val_set_parameterValue[safeIndex], (char*)ParamVal,MAX_PARAMETER_LEN);
+                val_set[safeIndex].type = ccsp_unsignedInt;
 
-	char ParamVal[64] = {};
+                val_set[safeIndex].parameterName = val_set_parameterName[safeIndex];
+                val_set[safeIndex].parameterValue = val_set_parameterValue[safeIndex];
 
-    if( AnscEqualString(ParamName, "ExternalPort", TRUE) || AnscEqualString(ParamName, "ExternalPortEndRange", TRUE))
-    {
-    	/* Validate ExternalPort and
-    	 * and ExternalPortEndRange
-    	 */
-    	//SafeNAT_Validate_ExternalPort() - Taken care in RDKB stack, skip.
+                safeIndex++;
 
-        /* convert to parameterValue string */
-    	sprintf(ParamVal, "%u", uValue);
-		val.parameterValue = (char*)ParamVal;
-		val.type = ccsp_unsignedInt;
-    }
-    else if( AnscEqualString(ParamName, "Protocol", TRUE))
-    {
-    	/* convert to parameterValue string */
-    	switch(uValue)
-    	{
-    	case 1:
-    		sprintf(ParamVal, "%s", "TCP");
-    		break;
-    	case 2:
-    		sprintf(ParamVal, "%s", "UDP");
-    		break;
-    	case 3:
-    		sprintf(ParamVal, "%s", "BOTH");
-    		break;
-    	default:
-    		SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported value!!. EXIT.\n", __FUNCTION__, hInsContext, ParamName, uValue);
-    		return FALSE;
-    	}
-    	val.parameterValue = (char*)ParamVal;
-    	val.type = ccsp_string;
+                ret = TRUE;
+        }
+        else if( AnscEqualString(ParamName, "Protocol", TRUE))
+        {
+                /* convert to parameterValue string */
+                switch(uValue)
+                {
+                        case 1:
+                        sprintf(ParamVal, "%s", "TCP");
+                        break;
+                        case 2:
+                        sprintf(ParamVal, "%s", "UDP");
+                        break;
+                        case 3:
+                        sprintf(ParamVal, "%s", "BOTH");
+                        break;
+                        default:
+                        SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported value!!. EXIT.\n", __FUNCTION__, hInsContext, ParamName, uValue);
+                        return FALSE;
+                }
+                
+                strncpy(val_set_parameterName[safeIndex], (char*)NATParamName, MAX_PARAMETER_LEN);
+                strncpy(val_set_parameterValue[safeIndex], (char*)ParamVal, MAX_PARAMETER_LEN);
+                val_set[safeIndex].type = ccsp_string;
 
-    }
-    else if( AnscEqualString(ParamName, "InternalClient", TRUE))
-    {
-    	struct in_addr addr = {0};
-    	addr.s_addr = uValue;
-     	sprintf(ParamVal, "%s", inet_ntoa(addr));
+                val_set[safeIndex].parameterName = val_set_parameterName[safeIndex];
+                val_set[safeIndex].parameterValue = val_set_parameterValue[safeIndex];
 
-     	/*
-     	 * Validate: Internal client should be in the valid range
-     	 */
-     	if(SafeNAT_Validate_InternalClient((char*)ParamVal) == FALSE)
-     	{
-     		SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported value!!. EXIT.\n", __FUNCTION__, hInsContext, ParamName, uValue);
-     		return FALSE;
-     	}
+                safeIndex++;
 
-     	val.parameterValue = (char*)ParamVal;
-    	val.type = ccsp_string;
-    }
-    else
-    {
-    	SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported Param!! EXIT\n", __FUNCTION__, hInsContext, ParamName, uValue);
-    	return FALSE;
-    }
+                ret = TRUE;
+        }
+        else if( AnscEqualString(ParamName, "InternalClient", TRUE))
+        {
+                struct in_addr addr = {0};
+                
+                addr.s_addr = uValue;
+                sprintf(ParamVal, "%s", inet_ntoa(addr));
 
-    SAFENAT_PRINT("[SafeNAT]  %s() : calling CcspBaseIf_setParameterValues(Name:'%s', Value:'%s', Type: %d)\n", __FUNCTION__ , val.parameterName, val.parameterValue, val.type);
-    /* call SPV to P&M */
-    if(CcspBaseIf_setParameterValues(bus_handle,
-    		SAFENAT_PROXY_COMPONENT_ID,
-			SAFENAT_PROXY_DBUS_PATH,
-			0, 0x0,   /* session id and write id */
-			&val,
-			1,
-			TRUE, /* no commit */
-			&faultParam) == CCSP_SUCCESS)
-	{
-		SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_setParameterValues('%s', '%s') success.\n", __FUNCTION__ , val.parameterName, val.parameterValue);
-		ret = TRUE;
-	}
-	else
-	{
-		SAFENAT_PRINT("[SafeNAT]  %s : Failed to SetValue '%s' for param '%s'\n", __FUNCTION__, val.parameterValue, faultParam);
-		SAFE_FREE(faultParam);
-	}
+                /*
+                * Validate: Internal client should be in the valid range
+                */
+                if(SafeNAT_Validate_InternalClient((char*)ParamVal) == FALSE)
+                {
+                        SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported value!!. EXIT.\n", __FUNCTION__, hInsContext, ParamName, uValue);
+                        return FALSE;
+                }
+                
+                strncpy(val_set_parameterName[safeIndex], (char*)NATParamName, MAX_PARAMETER_LEN);
+                strncpy(val_set_parameterValue[safeIndex], (char*)ParamVal, MAX_PARAMETER_LEN);
+                val_set[safeIndex].type = ccsp_string;
 
-	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x, '%s', uValue: %u) ret = %d EXIT\n", __FUNCTION__, hInsContext, ParamName, uValue, ret );
+                val_set[safeIndex].parameterName = val_set_parameterName[safeIndex];
+                val_set[safeIndex].parameterValue = val_set_parameterValue[safeIndex];
 
-    return ret;
+                safeIndex++;
+
+                ret = TRUE;
+        }
+        else
+        {
+                SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', uValue:%u) UnSupported Param!! EXIT\n", __FUNCTION__, hInsContext, ParamName, uValue);
+                return FALSE;
+        }
+        
+        SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x, '%s', uValue: %u) ret = %d EXIT\n", __FUNCTION__, hInsContext, ParamName, uValue, ret );
+        return ret;
 }
 
 /**************************************************************************************************/
@@ -963,104 +972,91 @@ X_RDKCENTRAL_PortMapping_SetParamStringValue
         char*                       pString
     )
 {
-	SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', val:'%s') ENTER\n", __FUNCTION__, hInsContext, ParamName, pString);
+        SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', val:'%s') ENTER\n", __FUNCTION__, hInsContext, ParamName, pString);
 
-	BOOL ret = FALSE;
-	parameterValStruct_t val = {0};
-	char* faultParam = NULL;
-	ULONG insNum = (ULONG)hInsContext - SAFENAT_SPMAP_BASE_ADDR;
+        BOOL ret = FALSE;
+        ULONG insNum = (ULONG)hInsContext - SAFENAT_SPMAP_BASE_ADDR;
 
-    if( AnscEqualString(ParamName, "Description", TRUE) )
-    {
-     	char *parameterNames[1];
-    	parameterValStruct_t **parameterval = NULL;
-    	int val_size = 0;
-    	char ObjName[64] = {};
-		sprintf(ObjName, "%s", "Device.NAT.PortMapping.");
-		parameterNames[0] = (char*)&ObjName;
+        if( AnscEqualString(ParamName, "Description", TRUE) )
+        {
+                char *parameterNames[1];
+                parameterValStruct_t **parameterval = NULL;
+                int val_size = 0;
+                char ObjName[MAX_PARAMETER_LEN] = {};
+                sprintf(ObjName, "%s", "Device.NAT.PortMapping.");
+                parameterNames[0] = (char*)&ObjName;
 
-    	/* Validate Description: Get all existing parameter values and check each value */
-		if(CcspBaseIf_getParameterValues(
-    					bus_handle,
-    					SAFENAT_PROXY_COMPONENT_ID,
-    					SAFENAT_PROXY_DBUS_PATH,
-    					parameterNames,
-    					1,
-    					&val_size,
-    					&parameterval) == CCSP_SUCCESS)
-    	{
-			if(val_size >= 1 && parameterval != NULL)
-			{
-				BOOL bParamValid = TRUE;
-				int i = 0;
-				for (i = 0; i < val_size; i++)
-				{
-					SAFENAT_PRINT("[SafeNAT] : %s = \"%s\"\n", parameterval[i]->parameterName, parameterval[i]->parameterValue);
+                // Validate Description: Get all existing parameter values and check each value 
+                if(CcspBaseIf_getParameterValues(
+                        bus_handle,
+                        SAFENAT_PROXY_COMPONENT_ID,
+                        SAFENAT_PROXY_DBUS_PATH,
+                        parameterNames,
+                        1,
+                        &val_size,
+                        &parameterval) == CCSP_SUCCESS)
+                {
+                        if(val_size >= 1 && parameterval != NULL)
+                        {
+                                BOOL bParamValid = TRUE;
+                                int i = 0;
+                                for (i = 0; i < val_size; i++)
+                                {
+                                        SAFENAT_PRINT("[SafeNAT] : %s = \"%s\"\n", parameterval[i]->parameterName, parameterval[i]->parameterValue);
 
-					if(strstr(parameterval[i]->parameterName, ".Description"))
-					{
-						if(SafeNAT_Validate_Description(pString, parameterval[i]->parameterValue) == FALSE)
-						{
-							bParamValid = FALSE;
-							break; //Validation failed, return failure.
-						}
-					}
-				}
+                                        if(strstr(parameterval[i]->parameterName, ".Description"))
+                                        {
+                                                if(SafeNAT_Validate_Description(pString, parameterval[i]->parameterValue) == FALSE)
+                                                {
+                                                        bParamValid = FALSE;
+                                                        break; //Validation failed, return failure.
+                                                }
+                                        }
+                                }
 
-				//do the set param stuff
-				if(bParamValid)
-				{
-			        /* call SPV to P&M */
-			    	char NATParamName[64] = {};
-			    	sprintf(NATParamName, "%s.%u.%s", "Device.NAT.PortMapping", insNum, ParamName);
+                                //do the set param stuff
+                                if(bParamValid)
+                                {
+                                        /* call SPV to P&M */
+                                        char NATParamName[MAX_PARAMETER_LEN] = {};
+                                        sprintf(NATParamName, "%s.%u.%s", "Device.NAT.PortMapping", insNum, ParamName);
+                                        
+                                        strncpy(val_set_parameterName[safeIndex], (char*)NATParamName,MAX_PARAMETER_LEN);
+                                        val_set[safeIndex].type = ccsp_string;
+                                        strncpy(val_set_parameterValue[safeIndex], pString,MAX_PARAMETER_LEN);
 
-					val.parameterName = (char*)NATParamName;
-					val.type = ccsp_string;
-					val.parameterValue = pString;
+                                        val_set[safeIndex].parameterName = val_set_parameterName[safeIndex];
+                                        val_set[safeIndex].parameterValue = val_set_parameterValue[safeIndex];
 
-					if(CcspBaseIf_setParameterValues(bus_handle,
-								SAFENAT_PROXY_COMPONENT_ID,
-								SAFENAT_PROXY_DBUS_PATH,
-								0, 0x0,   /* session id and write id */
-								&val,
-								1,
-								TRUE, /* no commit */
-								&faultParam) == CCSP_SUCCESS)
-					{
-						ret = TRUE;
-						SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_setParameterValues('%s', '%s') Success.\n", __FUNCTION__ , val.parameterName, val.parameterValue);
-					}
-					else
-					{
-						SAFENAT_PRINT("[SafeNAT]  %s : Failed to SetValue '%s' for param '%s'\n", __FUNCTION__, val.parameterValue, faultParam);
-						SAFE_FREE(faultParam);
-					}
-				}
-				else
-				{
-					SAFENAT_PRINT("[SafeNAT]  %s : Param value Invalid !!\n", __FUNCTION__);
-				}
-			}
-			else /* val_size == 0 or parameterval null */
-			{
-				SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_getParameterValues() parameterval == NULL !! or val_size == %d\n", __FUNCTION__, val_size );
-			}
+                                        safeIndex++;
 
-			//caller to CcspBaseIf_getParameterValues() should free parameterval
-			SAFE_FREE(parameterval);
-    	}
-    	else //CcspBaseIf_getParameterValues() failed. Can't get any params - fail
-    	{
-			SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_getParameterValues() Failed!\n", __FUNCTION__ );
-    	}
-    }
-    else
-    {
-    	SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', val:'%s') Param unsupported!\n", __FUNCTION__, hInsContext, ParamName, pString);
-    }
+                                        ret = TRUE;
+                                }
+                                else
+                                {
+                                        SAFENAT_PRINT("[SafeNAT]  %s : Param value Invalid !!\n", __FUNCTION__);
+                                }
+                        }
+                        else /* val_size == 0 or parameterval null */
+                        {
+                                SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_getParameterValues() parameterval == NULL !! or val_size == %d\n", __FUNCTION__, val_size );
+                        }
 
- 	SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, ParamName:'%s', val:'%s') ret = %d EXIT\n", __FUNCTION__, hInsContext, ParamName, pString, ret);
-    return ret;
+                        //caller to CcspBaseIf_getParameterValues() should free parameterval
+                        SAFE_FREE(parameterval);
+                }
+                else //CcspBaseIf_getParameterValues() failed. Can't get any params - fail
+                {
+                        SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_getParameterValues() Failed!\n", __FUNCTION__ );
+                }
+        }
+        else
+        {
+                SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, '%s', val:'%s') Param unsupported!\n", __FUNCTION__, hInsContext, ParamName, pString);
+        }
+
+        SAFENAT_PRINT("[SafeNAT]  : %s(handle:0x%x, ParamName:'%s', val:'%s') ret = %d EXIT\n", __FUNCTION__, hInsContext, ParamName, pString, ret);
+        return ret;
 
 }
 
@@ -1086,6 +1082,54 @@ X_RDKCENTRAL_PortMapping_Validate
 /**************************************************************************************************/
 
 ULONG
+CosaDmlSafeNatSetPortMapping()
+{
+        SAFENAT_PRINT("[SafeNAT]  %s: ENTER \n", __FUNCTION__);
+        ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
+        char* faultParam = NULL;
+        int i = 0;
+        
+        SAFENAT_PRINT("[SafeNAT]  %s : safeIndex = '%d'\n", __FUNCTION__ , safeIndex);
+        
+        for(i = 0; i < safeIndex; i++)
+        {
+                SAFENAT_PRINT("[SafeNAT]  %s : val_set[%d].parameterName = '%s', val_set[%d].parameterValue = '%s' , val_set[%d].type = '%d' \n", __FUNCTION__ , i, val_set[i].parameterName, i, val_set[i].parameterValue, i, val_set[i].type);
+        }
+        
+        SAFENAT_PRINT("[SafeNAT]  %s : B4 CcspBaseIf_setParameterValues \n", __FUNCTION__ );
+        if(CcspBaseIf_setParameterValues
+                (
+                        bus_handle,
+                        SAFENAT_PROXY_COMPONENT_ID,
+                        SAFENAT_PROXY_DBUS_PATH,
+                        0, 0x0,   // session id and write id 
+                        val_set,
+                        safeIndex,
+                        TRUE, // no commit 
+                        &faultParam
+               ) == CCSP_SUCCESS)
+        {
+                SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_setParameterValues Success.\n", __FUNCTION__ );
+        }
+        else
+        {
+                returnStatus = ANSC_STATUS_FAILURE;
+                SAFENAT_PRINT("[SafeNAT]  %s : Failed to Set Atomic for param '%s'\n", __FUNCTION__,faultParam);
+                SAFE_FREE(faultParam);
+        }
+        
+        safeIndex = 0;
+	memset(val_set,0,sizeof(val_set));
+	memset(val_set_parameterName,0,sizeof(val_set_parameterName));
+	memset(val_set_parameterValue,0,sizeof(val_set_parameterValue));		
+
+        SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
+        return returnStatus;
+}
+
+/**************************************************************************************************/
+
+ULONG
 X_RDKCENTRAL_PortMapping_Commit
     (
         ANSC_HANDLE                 hInsContext
@@ -1094,7 +1138,9 @@ X_RDKCENTRAL_PortMapping_Commit
 	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
 
 	ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
-
+        
+        returnStatus = CosaDmlSafeNatSetPortMapping();
+        
 	SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
 
     return returnStatus;
@@ -1111,7 +1157,14 @@ X_RDKCENTRAL_PortMapping_Rollback
 	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
 
 	ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
-
+	
+	int i = 0;
+	
+        safeIndex = 0;
+	memset(val_set,0,sizeof(val_set));
+	memset(val_set_parameterName,0,sizeof(val_set_parameterName));
+	memset(val_set_parameterValue,0,sizeof(val_set_parameterValue));
+        
 	SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
 
     return returnStatus;
