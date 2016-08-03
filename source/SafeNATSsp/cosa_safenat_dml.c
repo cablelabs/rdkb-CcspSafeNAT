@@ -10,7 +10,6 @@
 ******************************************************************************/
    
 #include "ansc_platform.h"
-
 #include "cosa_safenat_dml.h"
 #include "cosa_safenat_internal.h"
 #include "ssp_global.h"
@@ -37,7 +36,7 @@ char val_set_parameterValue[SAFENAT_PORTMAPPING_PARAM_COUNT][MAX_PARAMETER_LEN] 
 
 int safeIndex = 0;
 
-ULONG CosaDmlSafeNatSetPortMapping();
+BOOL CosaDmlSafeNatSetPortMapping();
 /**************************************************************************************************/
 
 ANSC_STATUS
@@ -1070,22 +1069,24 @@ X_RDKCENTRAL_PortMapping_Validate
         ULONG*                      puLength
     )
 {
-	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
+        SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
 
-    BOOL	ret   = TRUE;
+        BOOL	ret   = TRUE;
 
-	SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
+        ret = CosaDmlSafeNatSetPortMapping();
+
+        SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
 
     return ret;
 }
 
 /**************************************************************************************************/
 
-ULONG
+BOOL
 CosaDmlSafeNatSetPortMapping()
 {
         SAFENAT_PRINT("[SafeNAT]  %s: ENTER \n", __FUNCTION__);
-        ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
+        BOOL		ret  = FALSE;
         char* faultParam = NULL;
         int i = 0;
         
@@ -1109,11 +1110,11 @@ CosaDmlSafeNatSetPortMapping()
                         &faultParam
                ) == CCSP_SUCCESS)
         {
+                ret = TRUE;
                 SAFENAT_PRINT("[SafeNAT]  %s : CcspBaseIf_setParameterValues Success.\n", __FUNCTION__ );
         }
         else
         {
-                returnStatus = ANSC_STATUS_FAILURE;
                 SAFENAT_PRINT("[SafeNAT]  %s : Failed to Set Atomic for param '%s'\n", __FUNCTION__,faultParam);
                 SAFE_FREE(faultParam);
         }
@@ -1124,7 +1125,8 @@ CosaDmlSafeNatSetPortMapping()
 	memset(val_set_parameterValue,0,sizeof(val_set_parameterValue));		
 
         SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
-        return returnStatus;
+        
+        return ret;
 }
 
 /**************************************************************************************************/
@@ -1135,13 +1137,11 @@ X_RDKCENTRAL_PortMapping_Commit
         ANSC_HANDLE                 hInsContext
     )
 {
-	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
+        SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
 
-	ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
-        
-        returnStatus = CosaDmlSafeNatSetPortMapping();
-        
-	SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
+        ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
+
+        SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
 
     return returnStatus;
 }
@@ -1154,18 +1154,16 @@ X_RDKCENTRAL_PortMapping_Rollback
         ANSC_HANDLE                 hInsContext
     )
 {
-	SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
+        SAFENAT_PRINT("[SafeNAT]  %s(handle:0x%x) : ENTER \n", __FUNCTION__ , hInsContext);
 
-	ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
-	
-	int i = 0;
-	
-        safeIndex = 0;
-	memset(val_set,0,sizeof(val_set));
-	memset(val_set_parameterName,0,sizeof(val_set_parameterName));
-	memset(val_set_parameterValue,0,sizeof(val_set_parameterValue));
+        ANSC_STATUS		returnStatus  = ANSC_STATUS_SUCCESS;
         
-	SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
+        safeIndex = 0;
+        memset(val_set,0,sizeof(val_set));
+        memset(val_set_parameterName,0,sizeof(val_set_parameterName));
+        memset(val_set_parameterValue,0,sizeof(val_set_parameterValue));
+	
+        SAFENAT_PRINT("[SafeNAT]  %s : EXIT \n", __FUNCTION__ );
 
     return returnStatus;
 }
