@@ -18,6 +18,7 @@
 #define SAFENAT_PROXY_COMPONENT_ID	        "eRT.com.cisco.spvtg.ccsp.pam"
 #define SAFENAT_PROXY_DBUS_PATH 	        "/com/cisco/spvtg/ccsp/pam"
 
+
 #define SAFENAT_SPMAP_BASE_ADDR 	        0x10000
 #define SAFENAT_PORTMAPPING_PARAM_COUNT         5
 #define MAX_PARAMETER_LEN                       512
@@ -100,7 +101,7 @@ SafeNAT_GetParamBoolValue
 			}
 
 			//caller to CcspBaseIf_getParameterValues() should free parameterval
-			SAFE_FREE(parameterval);
+			free_parameterValStruct_t (bus_handle, val_size, parameterval);	
 		}
 		else
 		{
@@ -456,7 +457,7 @@ X_RDKCENTRAL_PortMapping_GetEntryCount2
 		}
 
 		//caller to CcspBaseIf_getParameterValues() should free parameterval
-		SAFE_FREE(parameterval);
+		free_parameterValStruct_t (bus_handle, val_size, parameterval);	
 	}
 	else
 	{
@@ -732,7 +733,7 @@ X_RDKCENTRAL_PortMapping_GetParamUlongValue
 			}
 
 			//caller to CcspBaseIf_getParameterValues() should free parameterval
-			SAFE_FREE(parameterval);
+			free_parameterValStruct_t (bus_handle, val_size, parameterval);	
 		}
 		else
 		{
@@ -805,7 +806,7 @@ X_RDKCENTRAL_PortMapping_GetParamStringValue
 			}
 
 			//caller to CcspBaseIf_getParameterValues() should free parameterval
-			SAFE_FREE(parameterval);
+			free_parameterValStruct_t (bus_handle, val_size, parameterval);	
 		}
 		else
 		{
@@ -1042,7 +1043,7 @@ X_RDKCENTRAL_PortMapping_SetParamStringValue
                         }
 
                         //caller to CcspBaseIf_getParameterValues() should free parameterval
-                        SAFE_FREE(parameterval);
+                        free_parameterValStruct_t (bus_handle, val_size, parameterval);	
                 }
                 else //CcspBaseIf_getParameterValues() failed. Can't get any params - fail
                 {
